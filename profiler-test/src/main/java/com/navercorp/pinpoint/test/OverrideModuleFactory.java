@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 NAVER Corp.
+ * Copyright 2019 NAVER Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package com.navercorp.pinpoint.test;
 import com.google.inject.Module;
 import com.google.inject.util.Modules;
 import com.navercorp.pinpoint.bootstrap.AgentOption;
+import com.navercorp.pinpoint.bootstrap.config.DefaultProfilerConfig;
+import com.navercorp.pinpoint.bootstrap.config.TransportModule;
 import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.profiler.context.module.ApplicationContextModuleFactory;
 import com.navercorp.pinpoint.profiler.context.module.ModuleFactory;
@@ -30,11 +32,15 @@ public class OverrideModuleFactory implements ModuleFactory {
     private final Module[] overrideModule;
 
     public OverrideModuleFactory(Module... overrideModule) {
-        this.overrideModule = Assert.requireNonNull(overrideModule, "overrideModule must not be null");
+        this.overrideModule = Assert.requireNonNull(overrideModule, "overrideModule");
     }
 
     @Override
     public Module newModule(AgentOption agentOption) {
+
+        DefaultProfilerConfig profilerConfig = (DefaultProfilerConfig) agentOption.getProfilerConfig();
+        profilerConfig.setTransportModule(TransportModule.THRIFT);
+
         ModuleFactory moduleFactory = new ApplicationContextModuleFactory();
         Module module = moduleFactory.newModule(agentOption);
         return Modules.override(module).with(overrideModule);

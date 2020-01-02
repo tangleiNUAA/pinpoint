@@ -20,6 +20,7 @@ import com.mongodb.ReadPreference;
 import com.mongodb.WriteConcern;
 import com.navercorp.pinpoint.plugin.AgentPath;
 import com.navercorp.pinpoint.test.plugin.Dependency;
+import com.navercorp.pinpoint.test.plugin.JvmVersion;
 import com.navercorp.pinpoint.test.plugin.PinpointAgent;
 import com.navercorp.pinpoint.test.plugin.PinpointPluginTestSuite;
 import org.junit.AfterClass;
@@ -31,9 +32,10 @@ import org.junit.runner.RunWith;
  */
 @RunWith(PinpointPluginTestSuite.class)
 @PinpointAgent(AgentPath.PATH)
+@JvmVersion(8)
 @Dependency({
         "org.mongodb:mongodb-driver:[3.4.0,3.6.max]",
-        "de.flapdoodle.embed:de.flapdoodle.embed.mongo:2.1.1"
+        "de.flapdoodle.embed:de.flapdoodle.embed.mongo:2.0.0"
 })
 public class MongoDBIT_3_4_x_IT extends MongoDBITBase {
 
@@ -41,17 +43,11 @@ public class MongoDBIT_3_4_x_IT extends MongoDBITBase {
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
-        if (isWindows()) {
-            return;
-        }
         version = 3.4;
     }
 
     @AfterClass
     public static void tearDownAfterClass() {
-        if (isWindows()) {
-            return;
-        }
     }
 
     @Override

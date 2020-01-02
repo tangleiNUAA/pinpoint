@@ -19,11 +19,9 @@ package com.navercorp.pinpoint.collector.handler.thrift;
 import com.navercorp.pinpoint.collector.handler.SimpleHandler;
 import com.navercorp.pinpoint.collector.service.TraceService;
 import com.navercorp.pinpoint.common.server.bo.SpanChunkBo;
-import com.navercorp.pinpoint.common.server.bo.SpanFactory;
 
-import com.navercorp.pinpoint.grpc.trace.PSpanChunk;
+import com.navercorp.pinpoint.common.server.bo.thrift.SpanFactory;
 import com.navercorp.pinpoint.io.request.ServerRequest;
-import org.apache.thrift.TBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,36 +52,17 @@ public class ThriftSpanChunkHandler implements SimpleHandler {
         }
         if (data instanceof TSpanChunk) {
             handleSpanChunk((TSpanChunk) data);
-        } else if (data instanceof PSpanChunk) {
-            handleSpanChunk((PSpanChunk) data);
         } else {
             throw new UnsupportedOperationException("data is not support type : " + data);
         }
     }
 
     private void handleSpanChunk(TSpanChunk tbase) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Handle TSpanChunk={}", tbase);
-        }
-
         try {
             final SpanChunkBo spanChunkBo = this.spanFactory.buildSpanChunkBo(tbase);
             this.traceService.insertSpanChunk(spanChunkBo);
         } catch (Exception e) {
-            logger.warn("SpanChunk handle error Caused:{}", e.getMessage(), e);
+            logger.warn("Failed to handle SpanChunk={}, Caused={}", tbase, e.getMessage(), e);
         }
-    }
-
-    private void handleSpanChunk(PSpanChunk tbase) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Handle PSpanChunk={}", tbase);
-        }
-
-//        try {
-//            final SpanChunkBo spanChunkBo = this.spanFactory.buildSpanChunkBo(tbase);
-//            this.traceService.insertSpanChunk(spanChunkBo);
-//        } catch (Exception e) {
-//            logger.warn("SpanChunk handle error Caused:{}", e.getMessage(), e);
-//        }
     }
 }

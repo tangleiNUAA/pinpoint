@@ -16,25 +16,26 @@
 
 package com.navercorp.pinpoint.collector.receiver.grpc;
 
-import com.navercorp.pinpoint.grpc.trace.PResult;
 import com.navercorp.pinpoint.io.request.ServerResponse;
 import io.grpc.stub.StreamObserver;
 
-public class GrpcServerResponse implements ServerResponse<PResult> {
+import java.util.Objects;
 
-    private final StreamObserver<PResult> responseObserver;
+/**
+ * @author jaehong.kim
+ */
+public class GrpcServerResponse<T> implements ServerResponse<T> {
+    private final StreamObserver<T> responseObserver;
 
-    public GrpcServerResponse(StreamObserver<PResult> responseObserver) {
-        this.responseObserver = responseObserver;
+    public GrpcServerResponse(StreamObserver<T> responseObserver) {
+        this.responseObserver = Objects.requireNonNull(responseObserver, "responseObserver");
     }
 
     @Override
-    public void write(final PResult message) {
+    public void write(final T message) {
         if (message == null) {
-            throw new NullPointerException("message must not be null");
+            throw new NullPointerException("message");
         }
-
-        // TODO Handle error
         responseObserver.onNext(message);
         responseObserver.onCompleted();
     }

@@ -5,15 +5,23 @@ permalink: main.html
 sidebar: mydoc_sidebar
 ---
 
-[Check out updates on lastest stable release](https://naver.github.io/pinpoint/1.8.2/main.html)
+[Check out updates on lastest stable release](https://naver.github.io/pinpoint/1.8.5/main.html)
 
-## What's Next in 1.9.0
+## Currently Working On
 
+\* **Scheduled for 1.9.0**
 
-### Pinpoint Plugin
+ - Node.js Agent is being tested. Node.js will be soon supported 
+ - \*Support Istio
+ - \*Switch to GRPC  
+ - \*Features to support k8s, docker
+ - \*Pinpoint UI v2 test is on progress
+ - \*Enhance Alarm criteria
+ - \*Support ElasticSearchBBoss
+ - \*Support Webflux
+ - \*Support Redisson
 
-
-### Upgrade consideration
+## Upgrade consideration
 
 HBase compatibility table:
 
@@ -31,5 +39,6 @@ Agent compatibility to Collector table:
 ## Supported Modules
 
 * JDK 6+
+* Supported versions of the \* indicated library may differ from the actual version.
 
 {% include_relative modules.md %}

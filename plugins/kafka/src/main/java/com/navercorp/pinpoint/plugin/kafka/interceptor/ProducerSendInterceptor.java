@@ -31,6 +31,7 @@ import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.plugin.kafka.KafkaConstants;
 import com.navercorp.pinpoint.plugin.kafka.field.accessor.RemoteAddressFieldAccessor;
+
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.lang.reflect.Method;
@@ -62,7 +63,7 @@ public class ProducerSendInterceptor implements AroundInterceptor {
             return;
         }
 
-        final Trace trace = traceContext.currentTraceObject();
+        final Trace trace = traceContext.currentRawTraceObject();
         if (trace == null) {
             return;
         }
@@ -205,7 +206,7 @@ public class ProducerSendInterceptor implements AroundInterceptor {
         }
 
         private void cleanPinpointHeader(org.apache.kafka.common.header.Headers kafkaHeaders) {
-            Assert.requireNonNull(kafkaHeaders, "kafkaHeaders must not be null");
+            Assert.requireNonNull(kafkaHeaders, "kafkaHeaders");
 
             for (org.apache.kafka.common.header.Header kafkaHeader : kafkaHeaders.toArray()) {
                 String kafkaHeaderKey = kafkaHeader.key();

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2018 NAVER Corp.
   ~
@@ -20,7 +21,7 @@
     <parent>
         <groupId>com.navercorp.pinpoint</groupId>
         <artifactId>pinpoint</artifactId>
-        <version>1.9.0-SNAPSHOT</version>
+        <version>2.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pinpoint-plugins</artifactId>
@@ -31,6 +32,7 @@
         <module>bom</module>
         <module>assembly</module>
         <module>common-servlet</module>
+        <module>external</module>
 
         <module>httpclient3</module>
         <module>httpclient4</module>
@@ -62,6 +64,7 @@
         <module>websphere</module>
         <module>spring</module>
         <module>spring-boot</module>
+        <module>spring-webflux</module>
         <module>ibatis</module>
         <module>mybatis</module>
         <module>okhttp</module>
@@ -79,7 +82,6 @@
         <module>rxjava</module>
         <module>rabbitmq</module>
         <module>weblogic</module>
-        <module>php</module>
         <module>akka-http</module>
         <module>undertow</module>
         <module>undertow-servlet</module>
@@ -88,8 +90,15 @@
         <module>fastjson</module>
         <module>druid</module>
         <module>hbase</module>
+        <module>log4j2</module>
         <module>openwhisk</module>
-        <module>node-js</module>
+        <module>redis-redisson</module>
+	    <module>elasticsearch-bboss</module>
+	    <module>apache-dubbo</module>
+        <module>elasticsearch</module>
+        <module>reactor</module>
+        <module>reactor-netty</module>
+        <module>jdk-completable-future</module>
     </modules>
 
     <dependencyManagement>

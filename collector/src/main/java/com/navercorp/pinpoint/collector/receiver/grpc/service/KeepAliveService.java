@@ -18,133 +18,100 @@ package com.navercorp.pinpoint.collector.receiver.grpc.service;
 
 import com.navercorp.pinpoint.collector.service.async.AgentEventAsyncTaskService;
 import com.navercorp.pinpoint.collector.service.async.AgentLifeCycleAsyncTaskService;
+import com.navercorp.pinpoint.collector.service.async.AgentProperty;
+import com.navercorp.pinpoint.collector.service.async.DefaultAgentProperty;
+import com.navercorp.pinpoint.collector.util.ManagedAgentLifeCycle;
 import com.navercorp.pinpoint.common.server.util.AgentEventType;
 import com.navercorp.pinpoint.common.server.util.AgentLifeCycleState;
-import com.navercorp.pinpoint.grpc.trace.KeepAliveGrpc;
-import com.navercorp.pinpoint.grpc.trace.PPing;
-import io.grpc.Status;
-import io.grpc.internal.KeepAliveManager;
-import io.grpc.stub.ServerCallStreamObserver;
-import io.grpc.stub.StreamObserver;
-import io.netty.util.concurrent.DefaultEventExecutor;
-import io.netty.util.concurrent.EventExecutor;
+import com.navercorp.pinpoint.grpc.Header;
+import com.navercorp.pinpoint.grpc.server.lifecycle.PingSession;
+import com.navercorp.pinpoint.grpc.server.lifecycle.PingSessionRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
 
-public class KeepAliveService extends KeepAliveGrpc.KeepAliveImplBase {
-    private static final long DEFAULT_KEEPALIVE_TIME_NANOS = TimeUnit.SECONDS.toNanos(10L);
-    private static final long DEFAULT_KEEPALIVE_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(30L);
+public class KeepAliveService {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private final AgentEventAsyncTaskService agentEventAsyncTask;
     private final AgentLifeCycleAsyncTaskService agentLifeCycleAsyncTask;
+    private final PingSessionRegistry pingSessionRegistry;
 
-    private KeepAliveManager keepAliveManager;
-    private EventExecutor eventExecutor = new DefaultEventExecutor();
-
-    // TODO keepalive time, timeout
-    public KeepAliveService(AgentEventAsyncTaskService grpcAgentEventAsyncTask, AgentLifeCycleAsyncTaskService grpcAgentLifeCycleAsyncTask) {
-        this.agentEventAsyncTask = grpcAgentEventAsyncTask;
-        this.agentLifeCycleAsyncTask = grpcAgentLifeCycleAsyncTask;
+    @Autowired
+    public KeepAliveService(AgentEventAsyncTaskService agentEventAsyncTask,
+                            AgentLifeCycleAsyncTaskService agentLifeCycleAsyncTask,
+                            PingSessionRegistry pingSessionRegistry) {
+        this.agentEventAsyncTask = Objects.requireNonNull(agentEventAsyncTask, "agentEventAsyncTask");
+        this.agentLifeCycleAsyncTask = Objects.requireNonNull(agentLifeCycleAsyncTask, "agentLifeCycleAsyncTask");
+        this.pingSessionRegistry = Objects.requireNonNull(pingSessionRegistry, "pingSessionRegistry");
     }
 
-    @Override
-    public StreamObserver<PPing> serverKeepAlive(StreamObserver<PPing> responseObserver) {
-        KeepAlivePinger keepAlivePinger = new KeepAlivePinger(responseObserver);
-        keepAliveManager = new KeepAliveManager(keepAlivePinger, eventExecutor, DEFAULT_KEEPALIVE_TIME_NANOS, DEFAULT_KEEPALIVE_TIMEOUT_NANOS, true);
 
-        ServerCallStreamObserver<PPing> serverCallStreamObserver = (ServerCallStreamObserver<PPing>) responseObserver;
-        serverCallStreamObserver.setOnReadyHandler(new Runnable() {
-            @Override
-            public void run() {
-                if (serverCallStreamObserver.isReady()) {
-                    keepAliveManager.onTransportStarted();
-                }
-            }
-        });
-
-        return new StreamObserver<PPing>() {
-            @Override
-            public void onNext(PPing pPing) {
-                keepAliveManager.onDataReceived();
-            }
-
-            @Override
-            public void onError(Throwable throwable) {
-                Status status = Status.fromThrowable(throwable);
-                logger.warn("Failed to server keep-alive status={}", status, throwable);
-                keepAliveManager.onTransportTermination();
-            }
-
-            @Override
-            public void onCompleted() {
-                logger.debug("Completed server keep-alive");
-                responseObserver.onCompleted();
-            }
-        };
+    public void updateState() {
+        final Collection<PingSession> lifecycles = pingSessionRegistry.values();
+        for (PingSession lifecycle : lifecycles) {
+            boolean closeState = false;
+            AgentLifeCycleState agentLifeCycleState = AgentLifeCycleState.RUNNING;
+            AgentEventType agentEventType = AgentEventType.AGENT_PING;
+            updateState(lifecycle, closeState, agentLifeCycleState, agentEventType);
+        }
     }
 
-    @Override
-    public StreamObserver<PPing> clientKeepAlive(StreamObserver<PPing> responseObserver) {
-        return new StreamObserver<PPing>() {
-            @Override
-            public void onNext(PPing pPing) {
-                logger.debug("Received client keep-alive " + pPing);
-                // TODO
-//                updateState(pPing);
-                responseObserver.onNext(PPing.newBuilder().build());
-            }
-
-            @Override
-            public void onError(Throwable throwable) {
-                Status status = Status.fromThrowable(throwable);
-                logger.warn("Failed to client keep-alive status={}", status);
-                //throwable.printStackTrace();
-            }
-
-            @Override
-            public void onCompleted() {
-                logger.debug("Completed client keep-alive");
-                responseObserver.onCompleted();
-            }
-        };
+    private AgentProperty newChannelProperties(Header header) {
+        final String agentId = header.getAgentId();
+        final long agentStartTime = header.getAgentStartTime();
+        return new DefaultAgentProperty(agentId, agentStartTime, Collections.emptyMap());
     }
 
-    private void updateState(final PPing ping) {
-        final int eventCounter = ping.getId();
-        long pingTimestamp = System.currentTimeMillis();
-        Map<Object, Object> channelProperties = new HashMap<>();
+    public void updateState(PingSession lifecycle, ManagedAgentLifeCycle managedAgentLifeCycle) {
+
+        boolean closeState = managedAgentLifeCycle.isClosedEvent();
+        AgentLifeCycleState agentLifeCycleState = managedAgentLifeCycle.getMappedState();
+        AgentEventType agentEventType = managedAgentLifeCycle.getMappedEvent();
+        updateState(lifecycle, closeState, agentLifeCycleState, agentEventType);
+    }
+
+    public void updateState(PingSession pingSession, boolean closeState, AgentLifeCycleState agentLifeCycleState, AgentEventType agentEventType) {
+
+        final Header header = pingSession.getHeader();
+        if (header == null) {
+            logger.warn("Not found request header");
+            return;
+        }
+
+        logger.debug("updateState:{} {} {}/{}", pingSession, closeState, agentLifeCycleState, agentEventType);
+
+        final long pingTimestamp = System.currentTimeMillis();
+
+        final long socketId = header.getSocketId();
+        if (socketId == -1) {
+            logger.info("socketId not exist:{}", header);
+            // skip
+            return;
+        }
+        final AgentProperty agentProperty = newChannelProperties(header);
+
         try {
-            if (!(eventCounter < 0)) {
-                agentLifeCycleAsyncTask.handleLifeCycleEvent(channelProperties, pingTimestamp, AgentLifeCycleState.RUNNING, eventCounter);
-            }
-            agentEventAsyncTask.handleEvent(channelProperties, pingTimestamp, AgentEventType.AGENT_PING);
+            long eventIdentifier = AgentLifeCycleAsyncTaskService.createEventIdentifier((int)socketId, (int) pingSession.nextEventIdAllocator());
+            this.agentLifeCycleAsyncTask.handleLifeCycleEvent(agentProperty , pingTimestamp, agentLifeCycleState, eventIdentifier);
+            this.agentEventAsyncTask.handleEvent(agentProperty, pingTimestamp, agentEventType);
         } catch (Exception e) {
-            logger.warn("Error handling client ping event", e);
+            logger.warn("Failed to update state. closeState:{} lifeCycle={} {}/{}", pingSession, closeState, agentLifeCycleState, agentEventType);
         }
     }
 
-    private static class KeepAlivePinger implements KeepAliveManager.KeepAlivePinger {
-        private final StreamObserver<PPing> responseObserver;
 
-        public KeepAlivePinger(StreamObserver<PPing> responseObserver) {
-            this.responseObserver = responseObserver;
-        }
-
-        @Override
-        public void ping() {
-            responseObserver.onNext(PPing.newBuilder().build());
-        }
-
-        @Override
-        public void onPingTimeout() {
-            Status status = Status.UNAVAILABLE.withDescription("Keepalive failed, The connection is likely gone");
-            responseObserver.onError(status.asRuntimeException());
+//    @PreDestroy
+    public void destroy() {
+        final Collection<PingSession> lifecycles = pingSessionRegistry.values();
+        for (PingSession lifecycle : lifecycles) {
+            updateState(lifecycle, ManagedAgentLifeCycle.CLOSED_BY_SERVER);
         }
     }
+
 }
